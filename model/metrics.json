@@ -1,11 +1,13 @@
 {
-  "best_model": "balanced_deeper",
+  "saved_model": "dt_balanced_deeper",
+  "best_overall_on_test": "logreg_balanced",
+  "selection_note": "API pickle is the best Decision Tree (required model family). Logistic regression and random forest are comparison-only.",
   "random_state": 42,
   "test_size": 0.3,
   "n_train": 4930,
   "n_test": 2113,
   "results": {
-    "shallow_interpretable": {
+    "dt_shallow": {
       "accuracy": 0.791292001893043,
       "precision": 0.6056338028169014,
       "recall": 0.6131907308377896,
@@ -19,9 +21,10 @@
           217,
           344
         ]
-      ]
+      ],
+      "roc_auc": 0.8231773848245953
     },
-    "balanced_deeper": {
+    "dt_balanced_deeper": {
       "accuracy": 0.7046852815901562,
       "precision": 0.4657236126224157,
       "recall": 0.7629233511586453,
@@ -35,11 +38,73 @@
           133,
           428
         ]
-      ]
+      ],
+      "roc_auc": 0.7987163937740045
+    },
+    "logreg_balanced": {
+      "accuracy": 0.7444391859914813,
+      "precision": 0.5120551090700345,
+      "recall": 0.7950089126559715,
+      "f1": 0.6229050279329609,
+      "confusion_matrix": [
+        [
+          1127,
+          425
+        ],
+        [
+          115,
+          446
+        ]
+      ],
+      "roc_auc": 0.8443414971424371
+    },
+    "rf_balanced": {
+      "accuracy": 0.7619498343587316,
+      "precision": 0.535024154589372,
+      "recall": 0.7896613190730838,
+      "f1": 0.6378689704823615,
+      "confusion_matrix": [
+        [
+          1167,
+          385
+        ],
+        [
+          118,
+          443
+        ]
+      ],
+      "roc_auc": 0.8401992943381663
+    },
+    "dt_gridsearch": {
+      "accuracy": 0.7401798390913393,
+      "precision": 0.5071258907363421,
+      "recall": 0.7611408199643493,
+      "f1": 0.6086956521739131,
+      "confusion_matrix": [
+        [
+          1137,
+          415
+        ],
+        [
+          134,
+          427
+        ]
+      ],
+      "roc_auc": 0.821618818567727,
+      "best_params": {
+        "model__class_weight": "balanced",
+        "model__max_depth": 6,
+        "model__min_samples_leaf": 10,
+        "model__min_samples_split": 2
+      },
+      "cv_recall": 0.7690766575999533
     }
   },
   "reports": {
-    "shallow_interpretable": "              precision    recall  f1-score   support\n\n          No       0.86      0.86      0.86      1552\n         Yes       0.61      0.61      0.61       561\n\n    accuracy                           0.79      2113\n   macro avg       0.73      0.73      0.73      2113\nweighted avg       0.79      0.79      0.79      2113\n",
-    "balanced_deeper": "              precision    recall  f1-score   support\n\n          No       0.89      0.68      0.77      1552\n         Yes       0.47      0.76      0.58       561\n\n    accuracy                           0.70      2113\n   macro avg       0.68      0.72      0.68      2113\nweighted avg       0.78      0.70      0.72      2113\n"
+    "dt_shallow": "              precision    recall  f1-score   support\n\n          No       0.86      0.86      0.86      1552\n         Yes       0.61      0.61      0.61       561\n\n    accuracy                           0.79      2113\n   macro avg       0.73      0.73      0.73      2113\nweighted avg       0.79      0.79      0.79      2113\n",
+    "dt_balanced_deeper": "              precision    recall  f1-score   support\n\n          No       0.89      0.68      0.77      1552\n         Yes       0.47      0.76      0.58       561\n\n    accuracy                           0.70      2113\n   macro avg       0.68      0.72      0.68      2113\nweighted avg       0.78      0.70      0.72      2113\n",
+    "logreg_balanced": "              precision    recall  f1-score   support\n\n          No       0.91      0.73      0.81      1552\n         Yes       0.51      0.80      0.62       561\n\n    accuracy                           0.74      2113\n   macro avg       0.71      0.76      0.71      2113\nweighted avg       0.80      0.74      0.76      2113\n",
+    "rf_balanced": "              precision    recall  f1-score   support\n\n          No       0.91      0.75      0.82      1552\n         Yes       0.54      0.79      0.64       561\n\n    accuracy                           0.76      2113\n   macro avg       0.72      0.77      0.73      2113\nweighted avg       0.81      0.76      0.77      2113\n",
+    "dt_gridsearch": "              precision    recall  f1-score   support\n\n          No       0.89      0.73      0.81      1552\n         Yes       0.51      0.76      0.61       561\n\n    accuracy                           0.74      2113\n   macro avg       0.70      0.75      0.71      2113\nweighted avg       0.79      0.74      0.75      2113\n"
   }
 }

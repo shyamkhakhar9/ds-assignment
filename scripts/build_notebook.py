@@ -60,8 +60,11 @@ from sklearn.metrics import (
     f1_score,
     precision_score,
     recall_score,
+    roc_auc_score,
 )
-from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import GridSearchCV, StratifiedKFold, train_test_split
 from sklearn.tree import DecisionTreeClassifier, plot_tree
 
 ROOT = Path.cwd().resolve()
@@ -255,54 +258,109 @@ These columns are passed through with the original numerics; categoricals are on
 md(
     """## 4. Model development
 
-Two Decision Tree configurations:
+**Required Decision Trees**
 
-1. **Shallow / interpretable** — `max_depth=4`, `min_samples_leaf=20` (easy to explain to the business).
-2. **Deeper / class-balanced** — `max_depth=8`, `min_samples_leaf=10`, `class_weight="balanced"` (pushes the tree to notice the minority churn class).
+1. **Shallow / interpretable** — `max_depth=4`, `min_samples_leaf=20`.
+2. **Deeper / class-balanced** — `max_depth=8`, `min_samples_leaf=10`, `class_weight="balanced"`.
 
-The same preprocessing pipeline wraps both models."""
+**Bonus**
+
+- **Class imbalance:** `class_weight="balanced"` on the deeper tree, logistic regression, and random forest so the minority churn class is not ignored.
+- **Hyperparameter tuning:** `GridSearchCV` (5-fold stratified, scoring = recall) over depth, leaf size, split size, and class weight.
+- **Additional models:** logistic regression (with numeric scaling) and a random forest on the same train/test split.
+
+The API still ships a **Decision Tree** (assignment requirement). Extra models are comparison-only."""
 )
 
 code(
-    """configs = {
-    "shallow_interpretable": DecisionTreeClassifier(
-        max_depth=4, min_samples_leaf=20, random_state=RANDOM_STATE
-    ),
-    "balanced_deeper": DecisionTreeClassifier(
-        max_depth=8, min_samples_leaf=10, class_weight="balanced", random_state=RANDOM_STATE
-    ),
-}
+    """def eval_row(name, pipe):
+    pred = pipe.predict(X_test)
+    proba = pipe.predict_proba(X_test)[:, 1]
+    return {
+        "model": name,
+        "accuracy": accuracy_score(y_test, pred),
+        "precision": precision_score(y_test, pred, zero_division=0),
+        "recall": recall_score(y_test, pred, zero_division=0),
+        "f1": f1_score(y_test, pred, zero_division=0),
+        "roc_auc": roc_auc_score(y_test, proba),
+    }
 
 fitted = {}
 rows = []
-for name, clf in configs.items():
+
+tree_configs = {
+    "dt_shallow": DecisionTreeClassifier(max_depth=4, min_samples_leaf=20, random_state=RANDOM_STATE),
+    "dt_balanced_deeper": DecisionTreeClassifier(
+        max_depth=8, min_samples_leaf=10, class_weight="balanced", random_state=RANDOM_STATE
+    ),
+}
+for name, clf in tree_configs.items():
     pipe = build_model_pipeline(clf)
     pipe.fit(X_train, y_train)
-    pred = pipe.predict(X_test)
     fitted[name] = pipe
-    rows.append(
-        {
-            "model": name,
-            "accuracy": accuracy_score(y_test, pred),
-            "precision": precision_score(y_test, pred, zero_division=0),
-            "recall": recall_score(y_test, pred, zero_division=0),
-            "f1": f1_score(y_test, pred, zero_division=0),
-        }
-    )
+    rows.append(eval_row(name, pipe))
+
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+search = GridSearchCV(
+    build_model_pipeline(DecisionTreeClassifier(random_state=RANDOM_STATE)),
+    param_grid={
+        "model__max_depth": [4, 6, 8, 10],
+        "model__min_samples_leaf": [5, 10, 20],
+        "model__min_samples_split": [2, 10],
+        "model__class_weight": [None, "balanced"],
+    },
+    scoring="recall",
+    cv=cv,
+    n_jobs=-1,
+    refit=True,
+)
+search.fit(X_train, y_train)
+fitted["dt_gridsearch"] = search.best_estimator_
+rows.append(eval_row("dt_gridsearch", search.best_estimator_))
+print("GridSearch best params:", search.best_params_)
+print("GridSearch CV recall:", round(search.best_score_, 4))
+
+extra = {
+    "logreg_balanced": (
+        LogisticRegression(max_iter=1000, class_weight="balanced", random_state=RANDOM_STATE),
+        True,
+    ),
+    "rf_balanced": (
+        RandomForestClassifier(
+            n_estimators=200,
+            max_depth=10,
+            min_samples_leaf=5,
+            class_weight="balanced",
+            random_state=RANDOM_STATE,
+            n_jobs=-1,
+        ),
+        False,
+    ),
+}
+for name, (clf, scale) in extra.items():
+    pipe = build_model_pipeline(clf, scale_numeric=scale)
+    pipe.fit(X_train, y_train)
+    fitted[name] = pipe
+    rows.append(eval_row(name, pipe))
 
 compare = pd.DataFrame(rows).set_index("model")
 display(compare.round(4))"""
 )
 
 md(
-    """**Selection:** For retention outreach we care most about **recall** (finding customers who will churn), then F1. The deeper balanced tree is preferred if it lifts recall without collapsing precision into noise. The shallow tree remains a useful explanation baseline."""
+    """**Selection:** The assignment model is a Decision Tree, so the pickle is the tree with the best **test recall**, then F1 (`dt_shallow`, `dt_balanced_deeper`, or `dt_gridsearch`). Logistic regression and random forest show whether a different family would score higher; they are not required for the API.
+
+`class_weight="balanced"` is the imbalance treatment: sklearn reweights the minority class instead of resampling, so the same pipeline still applies to a single API row."""
 )
 
 code(
-    """best_name = compare.sort_values(["recall", "f1"], ascending=False).index[0]
+    """tree_names = ["dt_shallow", "dt_balanced_deeper", "dt_gridsearch"]
+best_name = compare.loc[tree_names].sort_values(["recall", "f1"], ascending=False).index[0]
 best_pipe = fitted[best_name]
-print("Selected model:", best_name)
-print(best_pipe.named_steps["model"])"""
+best_overall = compare.sort_values(["recall", "f1"], ascending=False).index[0]
+print("Saved Decision Tree:", best_name)
+print(best_pipe.named_steps["model"])
+print("Best overall on this test set:", best_overall)"""
 )
 
 md(
@@ -315,6 +373,7 @@ print("Accuracy :", round(accuracy_score(y_test, y_pred), 4))
 print("Precision:", round(precision_score(y_test, y_pred, zero_division=0), 4))
 print("Recall   :", round(recall_score(y_test, y_pred, zero_division=0), 4))
 print("F1       :", round(f1_score(y_test, y_pred, zero_division=0), 4))
+print("ROC-AUC  :", round(roc_auc_score(y_test, best_pipe.predict_proba(X_test)[:, 1]), 4))
 print()
 print(classification_report(y_test, y_pred, target_names=["No", "Yes"], zero_division=0))
 
@@ -376,7 +435,8 @@ md(
 - Contract type, tenure, and fiber / month-to-month risk typically sit near the top of the tree — consistent with EDA.
 - Higher monthly charges and electronic check also split high-risk leaves.
 - `num_services` and `avg_monthly_spend` add product-depth and realized-bill signal on top of the raw catalogue fields.
-- The shallow depth-4 tree is easier to print on a slide; the selected model uses extra depth plus class weight to recover more churners.
+- The shallow depth-4 tree is easier to print on a slide; the shipped tree is the best of the two baselines and the GridSearch candidate.
+- Logistic regression and random forest are extra comparisons; they may beat the tree on AUC or F1, but the API stays a tree so retention can still read the splits.
 
 These rules are associative, not causal, but they line up with how telecom retention teams already think: early tenure, flexible contracts, expensive fiber plans."""
 )

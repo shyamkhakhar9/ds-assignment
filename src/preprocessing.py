@@ -7,10 +7,10 @@ from typing import List
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.base import ClassifierMixin
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 TARGET_COL = "Churn"
 ID_COL = "customerID"
@@ -120,10 +120,11 @@ def decode_prediction(label: int) -> str:
     return "Yes" if int(label) == 1 else "No"
 
 
-def build_preprocessor() -> ColumnTransformer:
+def build_preprocessor(scale_numeric: bool = False) -> ColumnTransformer:
+    numeric_step = StandardScaler() if scale_numeric else "passthrough"
     return ColumnTransformer(
         transformers=[
-            ("num", "passthrough", NUMERIC_FEATURES),
+            ("num", numeric_step, NUMERIC_FEATURES),
             (
                 "cat",
                 OneHotEncoder(handle_unknown="ignore", sparse_output=False),
@@ -134,11 +135,11 @@ def build_preprocessor() -> ColumnTransformer:
     )
 
 
-def build_model_pipeline(clf: DecisionTreeClassifier) -> Pipeline:
+def build_model_pipeline(clf: ClassifierMixin, scale_numeric: bool = False) -> Pipeline:
     return Pipeline(
         steps=[
             ("features", TelcoFeatureEngineer()),
-            ("preprocess", build_preprocessor()),
+            ("preprocess", build_preprocessor(scale_numeric=scale_numeric)),
             ("model", clf),
         ]
     )

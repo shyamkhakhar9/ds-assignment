@@ -47,7 +47,7 @@ pip install -r requirements.txt
 PYTHONPATH=. python -m src.train
 ```
 
-This compares two Decision Tree configurations, writes `model/churn_pipeline.pkl` and `model/metrics.json`.
+This trains two Decision Tree baselines, a GridSearch-tuned tree, logistic regression, and a random forest. It writes the best **Decision Tree** pipeline to `model/churn_pipeline.pkl` and comparison metrics to `model/metrics.json`.
 
 Open `notebook/churn_analysis.ipynb` for the full analysis (EDA, feature rationale, metrics, feature importance, and tree visualization). From the repo root:
 
@@ -86,5 +86,8 @@ Invalid payloads (wrong enums, extra fields, missing keys) return HTTP 422 from 
 
 ## Notes
 
-- **Recall vs precision:** for proactive retention, the selected tree prefers catching churners (recall), using `class_weight="balanced"` in the deeper configuration.
+- **Recall vs precision:** for proactive retention, the selected tree prefers catching churners (recall).
+- **Class imbalance:** `class_weight="balanced"` on trees, logistic regression, and random forest.
+- **Hyperparameter tuning:** `GridSearchCV` (5-fold, scoring = recall) over tree depth, leaf/split size, and class weight.
+- **Extra models:** logistic regression and random forest on the same split (comparison only; API still serves a Decision Tree).
 - Engineered features: `num_services`, `avg_monthly_spend`, `fiber_month_to_month`.
